@@ -15,14 +15,29 @@ const auth = (...allowedRoles) => {
             throw new AppError_1.default(401, "You are not authorized. Please log in.");
         }
         const token = authHeader.split(" ")[1];
-        const decoded = (0, jwt_1.verifyToken)(token);
-        const user = await prisma_1.default.user.findUnique({ where: { id: decoded.id } });
+        let decoded;
+        try {
+            decoded = (0, jwt_1.verifyToken)(token);
+        }
+        catch (error) {
+            throw new AppError_1.default(401, "You are not authorized. Please log in.");
+        }
+        // Fast role pre-filtering using token payload to avoid unnecessary DB queries
+        if (allowedRoles.length && !allowedRoles.includes(decoded.role)) {
+            throw new AppError_1.default(403, "You do not have permission to perform this action.");
+        }
+        // Retrieve only the required columns to minimize DB overhead
+        const user = await prisma_1.default.user.findUnique({
+            where: { id: decoded.id },
+            select: { id: true, email: true, role: true, status: true },
+        });
         if (!user) {
             throw new AppError_1.default(401, "User no longer exists.");
         }
         if (user.status === "SUSPENDED") {
             throw new AppError_1.default(403, "Your account has been suspended.");
         }
+        // Final verification of role against the current database state
         if (allowedRoles.length && !allowedRoles.includes(user.role)) {
             throw new AppError_1.default(403, "You do not have permission to perform this action.");
         }
