@@ -3,6 +3,8 @@ node_modules/
 
 # Build outputs
 dist/
+.next/
+.vercel/
 
 # Environment variables and secrets
 .env
