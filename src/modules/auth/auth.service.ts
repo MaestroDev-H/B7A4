@@ -18,14 +18,30 @@ const registerUser = async (payload: {
 
     const hashedPassword = await bcrypt.hash(payload.password, config.bcrypt_salt_rounds);
 
-    const user = await prisma.user.create({
-        data: {
-            name: payload.name,
-            email: payload.email,
-            password: hashedPassword,
-            role: payload.role ?? Role.CUSTOMER, // self-registration can never create ADMIN
-        },
-        select: { id: true, name: true, email: true, role: true, status: true, createdAt: true },
+    const targetRole = payload.role ?? Role.CUSTOMER;
+
+    const user = await prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+            data: {
+                name: payload.name,
+                email: payload.email,
+                password: hashedPassword,
+                role: targetRole,
+            },
+            select: { id: true, name: true, email: true, role: true, status: true, createdAt: true },
+        });
+
+        if (targetRole === Role.CUSTOMER) {
+            await tx.customerProfile.create({
+                data: { userId: newUser.id, fullName: payload.name },
+            });
+        } else if (targetRole === Role.PROVIDER) {
+            await tx.providerProfile.create({
+                data: { userId: newUser.id, businessName: payload.name, contactEmail: payload.email },
+            });
+        }
+
+        return newUser;
     });
 
     const token = signToken({ id: user.id, email: user.email, role: user.role });
@@ -34,7 +50,10 @@ const registerUser = async (payload: {
 };
 
 const loginUser = async (payload: { email: string; password: string }) => {
-    const user = await prisma.user.findUnique({ where: { email: payload.email } });
+    const user = await prisma.user.findUnique({
+        where: { email: payload.email },
+        include: { customerProfile: true, providerProfile: true },
+    });
 
     if (!user) {
         throw new AppError(401, "Invalid email or password.");
@@ -58,7 +77,16 @@ const loginUser = async (payload: { email: string; password: string }) => {
 const getMe = async (userId: string) => {
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, name: true, email: true, role: true, status: true, createdAt: true },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            createdAt: true,
+            customerProfile: true,
+            providerProfile: true,
+        },
     });
     if (!user) throw new AppError(404, "User not found.");
     return user;

@@ -70,7 +70,7 @@ const getMyOrders = async (customerId: string) => {
 };
 
 const getIncomingOrdersForProvider = async (providerId: string) => {
-    return prisma.rentalOrder.findMany({
+    const orders = await prisma.rentalOrder.findMany({
         where: { items: { some: { gearItem: { providerId } } } },
         include: {
             customer: { select: { id: true, name: true, email: true } },
@@ -79,6 +79,12 @@ const getIncomingOrdersForProvider = async (providerId: string) => {
         },
         orderBy: { createdAt: "desc" },
     });
+
+    // Cross-Tenant Data Isolation: Filter order items to only return items belonging to this provider
+    return orders.map((order) => ({
+        ...order,
+        items: order.items.filter((item) => item.gearItem.providerId === providerId),
+    }));
 };
 
 const getOrderById = async (orderId: string, requester: { id: string; role: string }) => {
@@ -97,6 +103,13 @@ const getOrderById = async (orderId: string, requester: { id: string; role: stri
 
     if (requester.role !== "ADMIN" && !isOwner && !isProviderOfAnyItem) {
         throw new AppError(403, "You do not have access to this order.");
+    }
+
+    if (requester.role === "PROVIDER" && !isOwner) {
+        return {
+            ...order,
+            items: order.items.filter((item) => item.gearItem.providerId === requester.id),
+        };
     }
 
     return order;
