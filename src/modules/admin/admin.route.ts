@@ -8,6 +8,7 @@ const router = Router();
 
 router.get("/users", auth("ADMIN"), AdminControllers.getAllUsers);
 router.patch("/users/:id/status", auth("ADMIN"), validateRequest(updateUserStatusValidation), AdminControllers.updateUserStatus);
+router.patch("/users/:id", auth("ADMIN"), validateRequest(updateUserStatusValidation), AdminControllers.updateUserStatus);
 router.get("/gear", auth("ADMIN"), AdminControllers.getAllGear);
 router.get("/rentals", auth("ADMIN"), AdminControllers.getAllRentalOrders);
 
