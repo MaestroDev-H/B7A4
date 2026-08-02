@@ -27,9 +27,9 @@ const globalErrorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
             statusCode = 404;
             message = "Requested resource was not found.";
         } else {
-            message = "Database request error.";
+            message = `Database request error (${err.code}): ${err.message}`;
         }
-        errorDetails = err.meta ?? null;
+        errorDetails = { code: err.code, meta: err.meta ?? null, message: err.message };
     } else if (err instanceof Error) {
         message = err.message;
         errorDetails = process.env.NODE_ENV === "production" ? null : err.stack;

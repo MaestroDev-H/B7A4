@@ -29,8 +29,23 @@ async function main() {
             email: "provider@gearup.com",
             password: providerPassword,
             role: Role.PROVIDER,
+            providerProfile: {
+                create: {
+                    businessName: "Trail Gear Co",
+                    contactEmail: "provider@gearup.com",
+                    phone: "+15551234567",
+                },
+            },
         },
     });
+
+    // Ensure provider profile exists
+    const existingProvProfile = await prisma.providerProfile.findUnique({ where: { userId: provider.id } });
+    if (!existingProvProfile) {
+        await prisma.providerProfile.create({
+            data: { userId: provider.id, businessName: "Trail Gear Co", contactEmail: "provider@gearup.com" },
+        });
+    }
 
     const customer = await prisma.user.upsert({
         where: { email: "customer@gearup.com" },
@@ -40,8 +55,22 @@ async function main() {
             email: "customer@gearup.com",
             password: customerPassword,
             role: Role.CUSTOMER,
+            customerProfile: {
+                create: {
+                    fullName: "Jane Customer",
+                    phone: "+15559876543",
+                },
+            },
         },
     });
+
+    // Ensure customer profile exists
+    const existingCustProfile = await prisma.customerProfile.findUnique({ where: { userId: customer.id } });
+    if (!existingCustProfile) {
+        await prisma.customerProfile.create({
+            data: { userId: customer.id, fullName: "Jane Customer" },
+        });
+    }
 
     const category = await prisma.category.upsert({
         where: { name: "Camping" },
