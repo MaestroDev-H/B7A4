@@ -20,6 +20,9 @@ const getAllGear = async (filters: TGearFilters) => {
 
     const where: Prisma.GearItemWhereInput = {
         isDeleted: false,
+        provider: {
+            status: "ACTIVE",
+        },
         ...(search && {
             OR: [
                 { name: { contains: search, mode: "insensitive" } },
@@ -40,21 +43,27 @@ const getAllGear = async (filters: TGearFilters) => {
 
     return prisma.gearItem.findMany({
         where,
-        include: { category: true, provider: { select: { id: true, name: true } } },
+        include: { category: true, provider: { select: { id: true, name: true, status: true } } },
         orderBy: { createdAt: "desc" },
     });
 };
 
 const getGearById = async (id: string) => {
     const gear = await prisma.gearItem.findFirst({
-        where: { id, isDeleted: false },
+        where: {
+            id,
+            isDeleted: false,
+            provider: {
+                status: "ACTIVE",
+            },
+        },
         include: {
             category: true,
-            provider: { select: { id: true, name: true, email: true } },
+            provider: { select: { id: true, name: true, email: true, status: true } },
             reviews: { include: { customer: { select: { id: true, name: true } } } },
         },
     });
-    if (!gear) throw new AppError(404, "Gear item not found.");
+    if (!gear) throw new AppError(404, "Gear item not found or provider is currently suspended.");
     return gear;
 };
 

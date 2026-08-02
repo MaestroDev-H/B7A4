@@ -26,8 +26,14 @@ const createRentalOrder = async (customerId: string, payload: TCreateRentalPaylo
         const orderItemsData = [];
 
         for (const item of payload.items) {
-            const gear = await tx.gearItem.findFirst({ where: { id: item.gearItemId, isDeleted: false } });
+            const gear = await tx.gearItem.findFirst({
+                where: { id: item.gearItemId, isDeleted: false },
+                include: { provider: true },
+            });
             if (!gear) throw new AppError(404, `Gear item ${item.gearItemId} not found.`);
+            if (gear.provider?.status === "SUSPENDED") {
+                throw new AppError(400, `"${gear.name}" cannot be rented because its provider account is currently suspended.`);
+            }
             if (!gear.isAvailable) throw new AppError(400, `"${gear.name}" is not currently available.`);
             if (gear.stock < item.quantity) {
                 throw new AppError(400, `Only ${gear.stock} unit(s) of "${gear.name}" available.`);
